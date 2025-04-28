@@ -7,4 +7,4 @@ services:
     startCommand: python main.py
     envVars:
       - key: RENDER_EXTERNAL_URL
-        value: https://اسم-سایت-ادرس-ساختت-توی-رندر.onrender.com
+        value: https://two-bot-hcxp.onrender.com

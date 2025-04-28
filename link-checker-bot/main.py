@@ -3,9 +3,12 @@ from telebot import types
 import os
 import threading
 import time
+import flask
 
-TOKEN = os.getenv("CHECKER_BOT_TOKEN")
+TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
+ADMIN_BOT_USERNAME = "UpTofBot"
 REQUIRED_CHANNELS = ["@hottof"]
+
 bot = telebot.TeleBot(TOKEN)
 
 def is_member(user_id):
@@ -45,7 +48,7 @@ def check_membership(call):
         bot.edit_message_text("هنوز عضو نشده‌اید. لطفاً عضو شوید و دوباره بررسی کنید.", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 def send_temp_link(message, link_id):
-    msg = bot.send_message(message.chat.id, f"دریافت فایل:\nhttps://t.me/{os.getenv('ADMIN_BOT_USERNAME')}?start={link_id}")
+    msg = bot.send_message(message.chat.id, f"دریافت فایل:\nhttps://t.me/{ADMIN_BOT_USERNAME}?start={link_id}")
     threading.Thread(target=delete_after, args=(msg.chat.id, msg.message_id)).start()
 
 def delete_after(chat_id, message_id):
@@ -55,18 +58,19 @@ def delete_after(chat_id, message_id):
     except:
         pass
 
-import flask
 server = flask.Flask(__name__)
 
 @server.route('/' + TOKEN, methods=['POST'])
-def getMessage():
+def get_message():
     bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
     return "!", 200
 
 @server.route("/")
 def webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url=os.getenv("RENDER_EXTERNAL_URL") + "/" + TOKEN)
+    url = os.environ.get("RENDER_EXTERNAL_URL")
+    if url:
+        bot.remove_webhook()
+        bot.set_webhook(url=url + "/" + TOKEN)
     return "Webhook set!", 200
 
 if __name__ == "__main__":

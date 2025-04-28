@@ -6,7 +6,9 @@ import time
 import flask
 
 TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
-ADMIN_BOT_USERNAME = "UpTofBot"
+ADMIN_BOT_USERNAME = "UpTofBot"  # همین ربات چکر
+UPLOADER_BOT_USERNAME = "UpTofBot"  # <<< اینجا یوزرنیم ربات آپلودر رو وارد کن (دقت کن)
+
 REQUIRED_CHANNELS = ["@hottof"]
 
 bot = telebot.TeleBot(TOKEN)
@@ -48,7 +50,8 @@ def check_membership(call):
         bot.edit_message_text("هنوز عضو نشده‌اید. لطفاً عضو شوید و دوباره بررسی کنید.", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 def send_temp_link(message, link_id):
-    msg = bot.send_message(message.chat.id, f"دریافت فایل:\nhttps://t.me/{ADMIN_BOT_USERNAME}?start={link_id}")
+    link = f"https://t.me/{UPLOADER_BOT_USERNAME}?start={link_id}"
+    msg = bot.send_message(message.chat.id, f"دریافت فایل:\n{link}")
     threading.Thread(target=delete_after, args=(msg.chat.id, msg.message_id)).start()
 
 def delete_after(chat_id, message_id):

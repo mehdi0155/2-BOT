@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: admin-bot
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: python main.py
+    envVars:
+      - key: RENDER_EXTERNAL_URL
+        value: https://اسم-سایت-ادرس-ساختت-توی-رندر.onrender.com

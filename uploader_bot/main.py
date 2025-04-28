@@ -8,6 +8,7 @@ import os
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
 ADMINS = [6378124502, 6387942633, 5459406429, 7189616405]
+CHECKER_BOT_USERNAME = "UpTofBot"  # <<< یوزرنیم ربات چکر اینجا تعریف شده
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}
@@ -62,7 +63,7 @@ def receive_cover(message):
             msg = bot.send_message(message.chat.id, "کپشن و توضیح فایل را بفرستید.")
             bot.register_next_step_handler(msg, receive_caption)
     else:
-        bot.send_message(message.chat.id, "فقط عکس بفرست یا روی ندارم بزن.")
+        bot.send_message(message.chat.id, "فقط عکس بفرست یا روی 'ندارم' کلیک کن.")
 
 def receive_caption(message):
     data = user_data.get(message.from_user.id)
@@ -75,15 +76,15 @@ def preview_post(message):
     if data:
         link_id = generate_link_id()
         pending_posts[message.from_user.id] = link_id
-        bot_username = bot.get_me().username
-        link = f"https://t.me/{bot_username}?start={link_id}"
+        # لینک باید به ربات چکر باشد
+        link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
         caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("مشاهده فایل", url=link))
         if data['cover']:
             bot.send_photo(message.chat.id, data['cover'], caption=caption, reply_markup=markup)
         else:
-            bot.send_video(message.chat.id, data['file_id'], caption=caption, reply_markup=markup)
+            bot.send_message(message.chat.id, caption, reply_markup=markup)
         confirm_markup = types.InlineKeyboardMarkup()
         confirm_markup.add(
             types.InlineKeyboardButton("ارسال در کانال", callback_data="send_now"),
@@ -98,15 +99,14 @@ def process_confirmation(call):
         data = user_data.get(call.from_user.id)
         link_id = pending_posts.get(call.from_user.id)
         if data and link_id:
-            bot_username = bot.get_me().username
-            link = f"https://t.me/{bot_username}?start={link_id}"
+            link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
             caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("مشاهده فایل", url=link))
             if data['cover']:
                 bot.send_photo(CHANNEL, data['cover'], caption=caption, reply_markup=markup)
             else:
-                bot.send_video(CHANNEL, data['file_id'], caption=caption, reply_markup=markup)
+                bot.send_message(CHANNEL, caption, reply_markup=markup)
             bot.send_message(call.message.chat.id, "پست با موفقیت ارسال شد.")
             del user_data[call.from_user.id]
             del pending_posts[call.from_user.id]

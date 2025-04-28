@@ -2,9 +2,10 @@ import telebot
 from telebot import types
 import random
 import string
+import flask
 import os
 
-TOKEN = os.getenv("ADMIN_BOT_TOKEN")
+TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
 ADMINS = [6378124502, 6387942633, 5459406429, 7189616405]
 
@@ -74,7 +75,8 @@ def preview_post(message):
     if data:
         link_id = generate_link_id()
         pending_posts[message.from_user.id] = link_id
-        link = f"https://t.me/{bot.get_me().username}?start={link_id}"
+        bot_username = bot.get_me().username
+        link = f"https://t.me/{bot_username}?start={link_id}"
         caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("مشاهده فایل", url=link))
@@ -96,7 +98,8 @@ def process_confirmation(call):
         data = user_data.get(call.from_user.id)
         link_id = pending_posts.get(call.from_user.id)
         if data and link_id:
-            link = f"https://t.me/{bot.get_me().username}?start={link_id}"
+            bot_username = bot.get_me().username
+            link = f"https://t.me/{bot_username}?start={link_id}"
             caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("مشاهده فایل", url=link))
@@ -108,24 +111,23 @@ def process_confirmation(call):
             del user_data[call.from_user.id]
             del pending_posts[call.from_user.id]
     elif call.data == "cancel_post":
-        if call.from_user.id in user_data:
-            del user_data[call.from_user.id]
-        if call.from_user.id in pending_posts:
-            del pending_posts[call.from_user.id]
+        user_data.pop(call.from_user.id, None)
+        pending_posts.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "ارسال لغو شد.")
 
-import flask
 server = flask.Flask(__name__)
 
 @server.route('/' + TOKEN, methods=['POST'])
-def getMessage():
+def get_message():
     bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
     return "!", 200
 
 @server.route("/")
 def webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url=os.getenv("RENDER_EXTERNAL_URL") + "/" + TOKEN)
+    url = os.environ.get("RENDER_EXTERNAL_URL")
+    if url:
+        bot.remove_webhook()
+        bot.set_webhook(url=url + "/" + TOKEN)
     return "Webhook set!", 200
 
 if __name__ == "__main__":

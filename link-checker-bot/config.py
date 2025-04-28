@@ -1,3 +1,3 @@
-CHECKER_BOT_TOKEN = "توکن ربات چکر"
-ADMIN_BOT_USERNAME = "یوزرنیم بدون @ ربات اصلی"
+CHECKER_BOT_TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
+ADMIN_BOT_USERNAME = "UpTofBot"
 REQUIRED_CHANNELS = ["@hottof"]

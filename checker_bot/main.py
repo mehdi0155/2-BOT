@@ -113,18 +113,18 @@ def receive_video(message):
         bot.send_message(message.chat.id, "فقط ویدیو ارسال کنید.")
         return
     user_data[message.from_user.id] = {'file_id': message.video.file_id}
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("ندارم")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("ندارم", callback_data="no_cover"))
     bot.send_message(message.chat.id, "کاور را ارسال کنید یا روی 'ندارم' بزنید.", reply_markup=markup)
     bot.register_next_step_handler(message, receive_cover)
 
 
-@bot.message_handler(func=lambda m: m.text == "ندارم")
-def no_cover(message):
-    data = user_data.get(message.from_user.id)
+@bot.callback_query_handler(func=lambda call: call.data == "no_cover")
+def handle_no_cover(call):
+    data = user_data.get(call.from_user.id)
     if data:
         data['cover'] = None
-        msg = bot.send_message(message.chat.id, "کپشن را وارد کنید.")
+        msg = bot.send_message(call.message.chat.id, "کپشن را وارد کنید.")
         bot.register_next_step_handler(msg, receive_caption)
 
 
@@ -176,8 +176,9 @@ def handle_send(message):
         else:
             bot.send_message(CHANNEL, caption)
         bot.send_message(message.chat.id, "ارسال شد.")
-    else:
-        bot.send_message(message.chat.id, "لغو شد.")
+    elif message.text == "لغو ارسال":
+        bot.send_message(message.chat.id, "ارسال لغو شد. بازگشت به پنل اصلی.")
+        admin_panel(message)
     user_data.pop(uid, None)
     pending_posts.pop(uid, None)
 
@@ -282,7 +283,6 @@ def show_stats(message):
         text += f"\n⬜️ آپلودر ({label}): {count_users(UPLOADER_STATS, period)} نفر"
         text += f"\n⬜️ چکر ({label}): {count_users(CHECKER_STATS, period)} نفر\n"
 
-    # جزئی برای هر کانال
     settings = load_settings()
     def channel_counts(file, period_days, channels):
         results = {}

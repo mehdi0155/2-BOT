@@ -4,7 +4,7 @@ from telebot import types
 
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
-ADMINS = [6387942633]  # آیدی عددی ادمین‌ها
+ADMINS = [6387942633, 5459406429, 7189616405]  # آیدی عددی ادمین‌ها
 CHECKER_BOT_USERNAME = "TofLinkBot"
 
 bot = telebot.TeleBot(TOKEN)
@@ -58,7 +58,7 @@ def handle_start(message):
     # اگر بدون آرگومان بود و ادمین بود، پنل را نشان بده
     if is_admin(uid):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("آپلود ویدیو", "مدیریت عضویت")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
         bot.send_message(message.chat.id, "به پنل خوش آمدید.", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "لینک دریافت شده معتبر نیست.")
@@ -67,10 +67,10 @@ def handle_start(message):
 def admin_panel(message):
     if is_admin(message.from_user.id):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("آپلود ویدیو", "مدیریت عضویت")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
         bot.send_message(message.chat.id, "پنل مدیریت", reply_markup=markup)
 
-@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "آپلود ویدیو")
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📂 آپلود ویدیو")
 def ask_video(message):
     msg = bot.send_message(message.chat.id, "لطفاً ویدیو را ارسال کنید.")
     bot.register_next_step_handler(msg, receive_video)
@@ -152,27 +152,73 @@ def handle_send(call):
     user_data.pop(uid, None)
     pending_posts.pop(uid, None)
 
-@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "مدیریت عضویت")
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📣 عضویت اجباری")
 def manage_subscription(message):
-    settings = load_settings()
-    uploader = "\n".join(settings["uploader_channels"]) or "❌ ندارد"
-    checker = "\n".join(settings["checker_channels"]) or "❌ ندارد"
-    txt = f"تنظیمات فعلی:\n\nعضویت اجباری در ربات آپلودر:\n{uploader}\n\nعضویت اجباری در ربات چکر:\n{checker}\n\nارسال دستور با این فرمت:\n`set uploader @channel1 @channel2`\n`set checker @channel3 @channel4`"
-    bot.send_message(message.chat.id, txt, parse_mode="Markdown")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("ربات آپلودر", callback_data="choose_uploader"),
+        types.InlineKeyboardButton("ربات چکر", callback_data="choose_checker")
+    )
+    bot.send_message(message.chat.id, "کدام ربات؟", reply_markup=markup)
 
-@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text.startswith("set "))
-def set_channels(message):
-    parts = message.text.split()
-    if len(parts) < 3: return bot.send_message(message.chat.id, "فرمت نادرست.")
+@bot.callback_query_handler(func=lambda call: call.data in ["choose_uploader", "choose_checker"])
+def show_channels(call):
+    bot.answer_callback_query(call.id)
     settings = load_settings()
-    if parts[1] == "uploader":
-        settings["uploader_channels"] = parts[2:]
-    elif parts[1] == "checker":
-        settings["checker_channels"] = parts[2:]
+    target = "uploader_channels" if call.data == "choose_uploader" else "checker_channels"
+    channels = settings[target]
+    text = "\n".join(channels) if channels else "❌ هیچ کانالی تنظیم نشده."
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("➕ افزودن کانال", callback_data=f"add_{target}"),
+        types.InlineKeyboardButton("➖ حذف کانال", callback_data=f"remove_{target}")
+    )
+    bot.send_message(call.message.chat.id, f"کانال‌های فعلی:\n{text}", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("add_"))
+def ask_add_channel(call):
+    bot.answer_callback_query(call.id)
+    target = call.data.replace("add_", "")
+    msg = bot.send_message(call.message.chat.id, "آیدی کانال را با @ ارسال کنید:")
+    bot.register_next_step_handler(msg, lambda m: add_channel(m, target))
+
+def add_channel(message, target):
+    if not message.text.startswith("@"): return bot.send_message(message.chat.id, "فرمت اشتباه است.")
+    settings = load_settings()
+    if message.text not in settings[target]:
+        settings[target].append(message.text)
+        save_settings(settings)
+        bot.send_message(message.chat.id, "کانال افزوده شد.")
     else:
-        return bot.send_message(message.chat.id, "فرمت نادرست.")
-    save_settings(settings)
-    bot.send_message(message.chat.id, "تنظیمات ذخیره شد.")
+        bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("remove_"))
+def ask_remove_channel(call):
+    bot.answer_callback_query(call.id)
+    target = call.data.replace("remove_", "")
+    settings = load_settings()
+    channels = settings[target]
+    if not channels:
+        bot.send_message(call.message.chat.id, "هیچ کانالی برای حذف وجود ندارد.")
+        return
+    markup = types.InlineKeyboardMarkup()
+    for ch in channels:
+        markup.add(types.InlineKeyboardButton(ch, callback_data=f"rm_{target}_{ch}"))
+    bot.send_message(call.message.chat.id, "یکی را انتخاب کنید:", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("rm_"))
+def remove_channel(call):
+    bot.answer_callback_query(call.id)
+    parts = call.data.split("_")
+    target = "_".join(parts[1:-1])
+    channel = parts[-1]
+    settings = load_settings()
+    if channel in settings[target]:
+        settings[target].remove(channel)
+        save_settings(settings)
+        bot.send_message(call.message.chat.id, "کانال حذف شد.")
+    else:
+        bot.send_message(call.message.chat.id, "کانال پیدا نشد.")
 
 def delete_after(chat_id, msg_id, warn_id):
     time.sleep(15)

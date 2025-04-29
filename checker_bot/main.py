@@ -1,18 +1,13 @@
 import telebot
-from telebot import types
 import os
-import threading
-import time
-import flask
 import json
 
 TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
-UPLOADER_BOT_USERNAME = "UpTofBot"
 REQUIRED_CHANNELS = ["@hottof"]
 
 bot = telebot.TeleBot(TOKEN)
 
-DB_FILE = "db.json"
+DB_FILE = "db.json"  # مسیر اشتراکی
 
 def load_db():
     if not os.path.exists(DB_FILE):
@@ -36,48 +31,36 @@ def start(message):
     if len(args) > 1:
         link_id = args[1]
         if is_member(message.from_user.id):
-            send_file_link(message, link_id)
+            send_file(message, link_id)
         else:
-            markup = types.InlineKeyboardMarkup()
-            for ch in REQUIRED_CHANNELS:
-                markup.add(types.InlineKeyboardButton(f"عضویت در {ch}", url=f"https://t.me/{ch[1:]}"))
-            markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
-            bot.send_message(message.chat.id, "برای دریافت فایل باید عضو کانال شوید.", reply_markup=markup)
+            send_subscription_prompt(message, link_id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("check_"))
-def check_membership(call):
+def check_subscription(call):
     link_id = call.data.split("_", 1)[1]
     if is_member(call.from_user.id):
-        send_file_link(call.message, link_id)
+        send_file(call.message, link_id)
     else:
-        markup = types.InlineKeyboardMarkup()
-        for ch in REQUIRED_CHANNELS:
-            markup.add(types.InlineKeyboardButton(f"عضویت در {ch}", url=f"https://t.me/{ch[1:]}"))
-        markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
-        bot.edit_message_text("هنوز عضو نشده‌اید. لطفاً عضو شوید و دوباره بررسی کنید.", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        send_subscription_prompt(call.message, link_id)
 
-def send_file_link(message, link_id):
+def send_subscription_prompt(message, link_id):
+    markup = telebot.types.InlineKeyboardMarkup()
+    for ch in REQUIRED_CHANNELS:
+        markup.add(telebot.types.InlineKeyboardButton(f"عضویت در {ch}", url=f"https://t.me/{ch[1:]}"))
+    markup.add(telebot.types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
+    bot.send_message(message.chat.id, "برای دریافت فایل باید عضو کانال شوید.", reply_markup=markup)
+
+def send_file(message, link_id):
     db = load_db()
-    if link_id not in db:
-        bot.send_message(message.chat.id, "متأسفم، این لینک معتبر نیست یا منقضی شده.")
+    file_id = db.get(link_id)
+    if not file_id:
+        bot.send_message(message.chat.id, "متأسفم، این فایل در دسترس نیست.")
         return
-    file_link = f"https://t.me/{UPLOADER_BOT_USERNAME}?start={link_id}"
-    bot.send_message(message.chat.id, f"دریافت فایل:\n{file_link}")
+    bot.send_video(message.chat.id, file_id, caption="@hottof | تُفِ داغ")
 
-server = flask.Flask(__name__)
-
-@server.route('/' + TOKEN, methods=['POST'])
-def get_message():
-    bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
-    return "!", 200
-
-@server.route("/")
-def webhook():
-    url = os.environ.get("RENDER_EXTERNAL_URL")
-    if url:
-        bot.remove_webhook()
-        bot.set_webhook(url=url + "/" + TOKEN)
-    return "Webhook set!", 200
-
-if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5001)))
+def setup_routes(server):
+    import flask
+    @server.route('/checker/' + TOKEN, methods=['POST'])
+    def get_checker_message():
+        bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
+        return "!", 200

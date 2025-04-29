@@ -1,4 +1,5 @@
 {
-  "uploader_channels": [],
-  "checker_channels": []
+  "checker_channels": [
+    { "id": "@yourchannel", "name": "کانال تستی" }
+  ]
 }

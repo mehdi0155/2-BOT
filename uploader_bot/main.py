@@ -153,7 +153,7 @@ def preview_post(message):
         pending_posts[message.from_user.id] = link_id
         save_to_db(link_id, data['file_id'])
         link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
-        caption = f"{data['caption']}\n\n@hottof | تُفِ داغ\n\n[مشاهده]({link})"
+        caption = f"[مشاهده]({link})\n\n{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("ارسال در کانال", "لغو ارسال")
         if data.get('cover'):

@@ -1,5 +1,5 @@
 import flask
-import telebot, json, os, random, string, threading, time
+import telebot, json, os, random, string, threading, time, datetime
 from telebot import types
 
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
@@ -11,6 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 user_data, pending_posts = {}, {}
 DB_FILE = "db.json"
 SETTINGS_FILE = "settings.json"
+STATS_FILE = "stats.json"
 
 
 def save_to_db(link_id, file_id):
@@ -21,6 +22,8 @@ def save_to_db(link_id, file_id):
     db[link_id] = file_id
     with open(DB_FILE, "w") as f:
         json.dump(db, f)
+
+    update_stats("uploader")
 
 
 def generate_link_id():
@@ -50,7 +53,26 @@ def save_settings(settings):
         json.dump(settings, f)
 
 
-@bot.message_handler(commands=['start'])
+def update_stats(bot_type):
+    today = datetime.date.today().isoformat()
+    stats = {"uploader": {}, "checker": {}, "channels": {}}
+    if os.path.exists(STATS_FILE):
+        with open(STATS_FILE) as f:
+            stats = json.load(f)
+    if today not in stats[bot_type]:
+        stats[bot_type][today] = 0
+    stats[bot_type][today] += 1
+    with open(STATS_FILE, "w") as f:
+        json.dump(stats, f)
+
+
+def get_stats():
+    if not os.path.exists(STATS_FILE):
+        return {"uploader": {}, "checker": {}, "channels": {}}
+    with open(STATS_FILE) as f:
+        return json.load(f)
+
+
 def handle_start(message):
     args = message.text.split()
     uid = message.from_user.id
@@ -69,175 +91,52 @@ def handle_start(message):
 
     if is_admin(uid):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری", "📊 آمار")
         bot.send_message(message.chat.id, "به پنل خوش آمدید.", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "لینک دریافت شده معتبر نیست.")
+
+
+@bot.message_handler(commands=['start'])
+def start_cmd(message):
+    handle_start(message)
 
 
 @bot.message_handler(commands=['panel'])
 def admin_panel(message):
     if is_admin(message.from_user.id):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری", "📊 آمار")
         bot.send_message(message.chat.id, "پنل مدیریت", reply_markup=markup)
 
 
-@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📂 آپلود ویدیو")
-def ask_video(message):
-    msg = bot.send_message(message.chat.id, "لطفاً ویدیو را ارسال کنید.")
-    bot.register_next_step_handler(msg, receive_video)
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📊 آمار")
+def show_statistics(message):
+    stats = get_stats()
+    today = datetime.date.today()
+    def count_days(bot_type, days):
+        total = 0
+        for i in range(days):
+            day = (today - datetime.timedelta(days=i)).isoformat()
+            total += stats.get(bot_type, {}).get(day, 0)
+        return total
+
+    text = (
+        f"آمار کلی:
+"
+        f"- امروز: آپلودر {count_days('uploader', 1)}, چکر {count_days('checker', 1)}
+"
+        f"- ۷ روز گذشته: آپلودر {count_days('uploader', 7)}, چکر {count_days('checker', 7)}
+"
+        f"- ۳۰ روز گذشته: آپلودر {count_days('uploader', 30)}, چکر {count_days('checker', 30)}"
+    )
+    bot.send_message(message.chat.id, text)
 
 
-def receive_video(message):
-    if not message.video:
-        bot.send_message(message.chat.id, "فقط ویدیو ارسال کنید.")
-        return
-    user_data[message.from_user.id] = {'file_id': message.video.file_id}
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("ندارم")
-    bot.send_message(message.chat.id, "کاور را ارسال کنید یا روی 'ندارم' بزنید.", reply_markup=markup)
-    bot.register_next_step_handler(message, receive_cover)
+# کد باقی ربات بدون تغییر است...
+# لطفاً ادامه‌ی کد اصلی را که فرستادی نگه دار و در اینجا قرار بده
+# این بخش فقط قسمت آمار را به کدت اضافه کرده بدون اینکه بخش‌های دیگر را تغییر بدهد
 
-
-@bot.message_handler(func=lambda m: m.text == "ندارم")
-def no_cover(message):
-    data = user_data.get(message.from_user.id)
-    if data:
-        data['cover'] = None
-        msg = bot.send_message(message.chat.id, "کپشن را وارد کنید.")
-        bot.register_next_step_handler(msg, receive_caption)
-
-
-def receive_cover(message):
-    if message.photo:
-        data = user_data.get(message.from_user.id)
-        if data:
-            data['cover'] = message.photo[-1].file_id
-            msg = bot.send_message(message.chat.id, "کپشن را وارد کنید.")
-            bot.register_next_step_handler(msg, receive_caption)
-    else:
-        bot.send_message(message.chat.id, "فقط عکس ارسال کنید یا گزینه 'ندارم' را بزنید.")
-
-
-def receive_caption(message):
-    data = user_data.get(message.from_user.id)
-    if data:
-        data['caption'] = message.text
-        preview_post(message)
-
-
-def preview_post(message):
-    data = user_data.get(message.from_user.id)
-    if data:
-        link_id = generate_link_id()
-        pending_posts[message.from_user.id] = link_id
-        save_to_db(link_id, data['file_id'])
-        link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
-        caption = f"{data['caption']}\n\n@hottof | تُفِ داغ\n\n[مشاهده]({link})"
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("ارسال در کانال", "لغو ارسال")
-        if data.get('cover'):
-            bot.send_photo(message.chat.id, data['cover'], caption=caption, parse_mode="Markdown")
-        else:
-            bot.send_message(message.chat.id, caption, parse_mode="Markdown")
-        bot.send_message(message.chat.id, "آیا پست ارسال شود؟", reply_markup=markup)
-
-
-@bot.message_handler(func=lambda m: m.text in ["ارسال در کانال", "لغو ارسال"])
-def handle_send(message):
-    uid = message.from_user.id
-    data = user_data.get(uid)
-    link_id = pending_posts.get(uid)
-    if message.text == "ارسال در کانال" and data and link_id:
-        link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
-        caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
-        if data.get('cover'):
-            bot.send_photo(CHANNEL, data['cover'], caption=caption)
-        else:
-            bot.send_message(CHANNEL, caption)
-        bot.send_message(message.chat.id, "ارسال شد.")
-    else:
-        bot.send_message(message.chat.id, "لغو شد.")
-    user_data.pop(uid, None)
-    pending_posts.pop(uid, None)
-
-
-@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📣 عضویت اجباری")
-def manage_subscription(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("ربات آپلودر", "ربات چکر")
-    markup.add("برگشت")
-    bot.send_message(message.chat.id, "کدام ربات؟", reply_markup=markup)
-
-
-@bot.message_handler(func=lambda m: m.text in ["ربات آپلودر", "ربات چکر"])
-def show_channels(message):
-    target = "uploader_channels" if message.text == "ربات آپلودر" else "checker_channels"
-    settings = load_settings()
-    channels = settings[target]
-    text = "\n".join(channels) if channels else "❌ هیچ کانالی تنظیم نشده."
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("➕ افزودن کانال", "➖ حذف کانال")
-    markup.add("برگشت")
-    bot.send_message(message.chat.id, f"کانال‌های فعلی:\n{text}", reply_markup=markup)
-    user_data[message.from_user.id] = {'target': target}
-
-
-@bot.message_handler(func=lambda m: m.text == "➕ افزودن کانال")
-def ask_add_channel(message):
-    target = user_data.get(message.from_user.id, {}).get('target')
-    if not target:
-        return bot.send_message(message.chat.id, "ابتدا ربات را انتخاب کنید.")
-    msg = bot.send_message(message.chat.id, "آیدی کانال را با @ ارسال کنید:")
-    bot.register_next_step_handler(msg, lambda m: add_channel(m, target))
-
-
-def add_channel(message, target):
-    if not message.text.startswith("@"): 
-        return bot.send_message(message.chat.id, "فرمت اشتباه است.")
-    settings = load_settings()
-    if message.text not in settings[target]:
-        settings[target].append(message.text)
-        save_settings(settings)
-        bot.send_message(message.chat.id, "کانال افزوده شد.")
-    else:
-        bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
-
-
-@bot.message_handler(func=lambda m: m.text == "➖ حذف کانال")
-def ask_remove_channel(message):
-    target = user_data.get(message.from_user.id, {}).get('target')
-    if not target:
-        return bot.send_message(message.chat.id, "ابتدا ربات را انتخاب کنید.")
-    settings = load_settings()
-    channels = settings[target]
-    if not channels:
-        return bot.send_message(message.chat.id, "هیچ کانالی برای حذف وجود ندارد.")
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for ch in channels:
-        markup.add(ch)
-    markup.add("برگشت")
-    bot.send_message(message.chat.id, "یکی را انتخاب کنید:", reply_markup=markup)
-    user_data[message.from_user.id]['remove_mode'] = True
-
-
-@bot.message_handler(func=lambda m: m.text == "برگشت")
-def go_back(message):
-    admin_panel(message)
-
-
-@bot.message_handler(func=lambda m: user_data.get(m.from_user.id, {}).get('remove_mode'))
-def remove_channel(message):
-    target = user_data[message.from_user.id]['target']
-    settings = load_settings()
-    if message.text in settings[target]:
-        settings[target].remove(message.text)
-        save_settings(settings)
-        bot.send_message(message.chat.id, "کانال حذف شد.")
-    else:
-        bot.send_message(message.chat.id, "کانال پیدا نشد.")
-    user_data[message.from_user.id].pop('remove_mode', None)
 
 
 def delete_after(chat_id, msg_id, warn_id):

@@ -4,15 +4,28 @@ import random
 import string
 import flask
 import os
+import json
 
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
-ADMINS = [6378124502, 6387942633, 5459406429, 7189616405]
-CHECKER_BOT_USERNAME = "TofLinkBot"  # <<< یوزرنیم ربات چکر اینجا تعریف شده
+ADMINS = [آیدی ادمین‌ها]
+CHECKER_BOT_USERNAME = "TofLinkBot"
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}
 pending_posts = {}
+
+DB_FILE = "db.json"
+
+def save_to_db(link_id, file_id):
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            db = json.load(f)
+    else:
+        db = {}
+    db[link_id] = file_id
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f)
 
 def is_admin(user_id):
     return user_id in ADMINS
@@ -76,7 +89,7 @@ def preview_post(message):
     if data:
         link_id = generate_link_id()
         pending_posts[message.from_user.id] = link_id
-        # لینک باید به ربات چکر باشد
+        save_to_db(link_id, data['file_id'])  # ذخیره در دیتابیس
         link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
         caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.InlineKeyboardMarkup()

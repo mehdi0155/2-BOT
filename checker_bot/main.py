@@ -1,6 +1,6 @@
 import telebot, json, os, flask, time, threading
 
-TOKEN = "توکن ربات چکر"
+TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "db.json"

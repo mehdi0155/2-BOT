@@ -220,12 +220,21 @@ def add_channel(message, target):
     if not message.text.startswith("@"):
         return bot.send_message(message.chat.id, "فرمت اشتباه است.")
     settings = load_settings()
-    if message.text not in settings[target]:
-        settings[target].append(message.text)
-        save_settings(settings)
-        bot.send_message(message.chat.id, "کانال افزوده شد.")
+    channel_id = message.text
+msg = bot.send_message(message.chat.id, "نام نمایشی برای این کانال را وارد کنید:")
+bot.register_next_step_handler(msg, lambda m: save_named_channel(m, target, channel_id))
     else:
         bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
+
+def save_named_channel(message, target, channel_id):
+    channel_name = message.text
+    settings = load_settings()
+    for ch in settings[target]:
+        if ch["id"] == channel_id:
+            return bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
+    settings[target].append({"id": channel_id, "name": channel_name})
+    save_settings(settings)
+    bot.send_message(message.chat.id, "کانال با موفقیت افزوده شد.")
 
 
 @bot.message_handler(func=lambda m: m.text == "➖ حذف کانال")

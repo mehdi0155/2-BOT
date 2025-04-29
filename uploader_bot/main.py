@@ -1,5 +1,5 @@
 import flask
-import telebot, json, os, random, string, threading, time
+import telebot, json, os, random, string, threading, time, datetime
 from telebot import types
 
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
@@ -11,6 +11,8 @@ bot = telebot.TeleBot(TOKEN)
 user_data, pending_posts = {}, {}
 DB_FILE = "db.json"
 SETTINGS_FILE = "settings.json"
+UPLOADER_STATS = "uploader_stats.json"
+CHECKER_STATS = "checker_stats.json"
 
 
 def save_to_db(link_id, file_id):
@@ -50,6 +52,23 @@ def save_settings(settings):
         json.dump(settings, f)
 
 
+def log_stats(file, user_id, channels):
+    stats = {}
+    if os.path.exists(file):
+        with open(file) as f:
+            stats = json.load(f)
+    today = datetime.date.today().isoformat()
+    if today not in stats:
+        stats[today] = {"users": [], "channels": {}}
+    if user_id not in stats[today]["users"]:
+        stats[today]["users"].append(user_id)
+    for ch in channels:
+        stats[today]["channels"].setdefault(ch, 0)
+        stats[today]["channels"][ch] += 1
+    with open(file, "w") as f:
+        json.dump(stats, f)
+
+
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     args = message.text.split()
@@ -69,7 +88,7 @@ def handle_start(message):
 
     if is_admin(uid):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری", "📊 آمار")
         bot.send_message(message.chat.id, "به پنل خوش آمدید.", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "لینک دریافت شده معتبر نیست.")
@@ -79,7 +98,7 @@ def handle_start(message):
 def admin_panel(message):
     if is_admin(message.from_user.id):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری")
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری", "📊 آمار")
         bot.send_message(message.chat.id, "پنل مدیریت", reply_markup=markup)
 
 
@@ -194,7 +213,7 @@ def ask_add_channel(message):
 
 
 def add_channel(message, target):
-    if not message.text.startswith("@"): 
+    if not message.text.startswith("@"):
         return bot.send_message(message.chat.id, "فرمت اشتباه است.")
     settings = load_settings()
     if message.text not in settings[target]:
@@ -238,6 +257,54 @@ def remove_channel(message):
     else:
         bot.send_message(message.chat.id, "کانال پیدا نشد.")
     user_data[message.from_user.id].pop('remove_mode', None)
+
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📊 آمار")
+def show_stats(message):
+    text = "📊 آمار کلی:\n"
+    now = datetime.date.today()
+    days = {
+        "روز": now.isoformat(),
+        "هفته": [(now - datetime.timedelta(days=i)).isoformat() for i in range(7)],
+        "ماه": [(now - datetime.timedelta(days=i)).isoformat() for i in range(30)],
+    }
+
+    def count_users(file, period_days):
+        total = 0
+        if os.path.exists(file):
+            with open(file) as f:
+                data = json.load(f)
+            for day in period_days:
+                total += len(data.get(day, {}).get("users", []))
+        return total
+
+    for label, period in days.items():
+        text += f"\n⬜️ آپلودر ({label}): {count_users(UPLOADER_STATS, period)} نفر"
+        text += f"\n⬜️ چکر ({label}): {count_users(CHECKER_STATS, period)} نفر\n"
+
+    # جزئی برای هر کانال
+    settings = load_settings()
+    def channel_counts(file, period_days, channels):
+        results = {}
+        if os.path.exists(file):
+            with open(file) as f:
+                data = json.load(f)
+            for day in period_days:
+                day_data = data.get(day, {}).get("channels", {})
+                for ch in channels:
+                    results[ch] = results.get(ch, 0) + day_data.get(ch, 0)
+        return results
+
+    text += "\n📍 آمار عضویت در کانال‌ها (۳۰ روز گذشته):\n"
+    for kind, label in [("uploader_channels", "آپلودر"), ("checker_channels", "چکر")]:
+        chs = settings.get(kind, [])
+        ch_stats = channel_counts(UPLOADER_STATS if kind == "uploader_channels" else CHECKER_STATS, days["ماه"], chs)
+        if ch_stats:
+            text += f"\n• {label}:\n"
+            for ch, count in ch_stats.items():
+                text += f"   {ch}: {count} عضو\n"
+
+    bot.send_message(message.chat.id, text)
 
 
 def delete_after(chat_id, msg_id, warn_id):

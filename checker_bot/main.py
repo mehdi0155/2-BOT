@@ -7,7 +7,7 @@ import flask
 
 TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
 ADMIN_BOT_USERNAME = "TofLinkBot"  # همین ربات چکر
-UPLOADER_BOT_USERNAME = "UpTofBot"  # <<< اینجا یوزرنیم ربات آپلودر رو وارد کن (دقت کن)
+UPLOADER_BOT_USERNAME = "TofLinkBot"  # <<< اینجا یوزرنیم ربات آپلودر رو وارد کن (دقت کن)
 
 REQUIRED_CHANNELS = ["@hottof"]
 

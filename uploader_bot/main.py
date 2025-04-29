@@ -221,10 +221,11 @@ def add_channel(message, target):
         return bot.send_message(message.chat.id, "فرمت اشتباه است.")
     settings = load_settings()
     channel_id = message.text
-msg = bot.send_message(message.chat.id, "نام نمایشی برای این کانال را وارد کنید:")
-bot.register_next_step_handler(msg, lambda m: save_named_channel(m, target, channel_id))
-    else:
-        bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
+    for ch in settings[target]:
+        if ch["id"] == channel_id:
+            return bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده است.")
+    msg = bot.send_message(message.chat.id, "نام نمایشی برای این کانال را وارد کنید:")
+    bot.register_next_step_handler(msg, lambda m: save_named_channel(m, target, channel_id))
 
 def save_named_channel(message, target, channel_id):
     channel_name = message.text

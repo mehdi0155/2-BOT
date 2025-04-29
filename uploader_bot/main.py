@@ -123,6 +123,7 @@ def receive_video(message):
 def handle_no_cover(call):
     data = user_data.get(call.from_user.id)
     if data:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
         data['cover'] = None
         msg = bot.send_message(call.message.chat.id, "کپشن را وارد کنید.")
         bot.register_next_step_handler(msg, receive_caption)

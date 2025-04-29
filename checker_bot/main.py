@@ -6,15 +6,23 @@ bot = telebot.TeleBot(TOKEN)
 DB_FILE = "db.json"
 SETTINGS_FILE = "settings.json"
 
+# بارگذاری دیتابیس
 def load_db():
-    return json.load(open(DB_FILE)) if os.path.exists(DB_FILE) else {}
+    if not os.path.exists(DB_FILE):
+        with open(DB_FILE, 'w') as f:
+            json.dump({}, f)
+    with open(DB_FILE) as f:
+        return json.load(f)
 
+# بارگذاری تنظیمات
 def load_settings():
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE) as f:
-            return json.load(f)
-    return {"checker_channels": []}
+    if not os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump({"checker_channels": []}, f)
+    with open(SETTINGS_FILE) as f:
+        return json.load(f)
 
+# بررسی عضویت کاربر در کانال‌های اجباری
 def get_non_member_channels(user_id):
     settings = load_settings()
     non_members = []
@@ -27,6 +35,7 @@ def get_non_member_channels(user_id):
             non_members.append(ch)
     return non_members
 
+# دستور /start
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     args = message.text.split()
@@ -40,6 +49,7 @@ def handle_start(message):
     else:
         bot.send_message(message.chat.id, "لینک نامعتبر است.")
 
+# بررسی مجدد عضویت
 @bot.callback_query_handler(func=lambda call: call.data.startswith("check_"))
 def check_again(call):
     link_id = call.data.split("_", 1)[1]
@@ -49,6 +59,7 @@ def check_again(call):
     else:
         send_sub_prompt(call.message.chat.id, link_id, non_members)
 
+# ارسال لینک به ربات آپلودر
 def send_download_link(chat_id, link_id):
     warn = bot.send_message(chat_id, "توجه: این پیام تا ۱۵ ثانیه دیگر حذف می‌شود.")
     markup = telebot.types.InlineKeyboardMarkup()
@@ -56,20 +67,25 @@ def send_download_link(chat_id, link_id):
     msg = bot.send_message(chat_id, "روی دکمه زیر بزن تا فایل را بگیری:", reply_markup=markup)
     threading.Thread(target=delete_after, args=(chat_id, msg.message_id, warn.message_id)).start()
 
+# ارسال پیام دعوت به عضویت در کانال‌ها
 def send_sub_prompt(chat_id, link_id, channels):
     markup = telebot.types.InlineKeyboardMarkup()
     for ch in channels:
-        markup.add(telebot.types.InlineKeyboardButton(f"عضویت در {ch}", url=f"https://t.me/{ch[1:]}"))
+        channel_username = ch[1:] if ch.startswith("@") else ch
+        markup.add(telebot.types.InlineKeyboardButton(f"عضویت در {channel_username}", url=f"https://t.me/{channel_username}"))
     markup.add(telebot.types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
     bot.send_message(chat_id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
 
+# حذف پیام‌ها بعد از ۱۵ ثانیه
 def delete_after(chat_id, msg_id, warn_id):
     time.sleep(15)
     try:
         bot.delete_message(chat_id, msg_id)
         bot.delete_message(chat_id, warn_id)
-    except: pass
+    except:
+        pass
 
+# تعریف روت Flask برای Webhook
 def setup_routes(server):
     @server.route('/checker/' + TOKEN, methods=['POST'])
     def handle_checker():

@@ -1,9 +1,9 @@
 import telebot, json, os, random, string, threading, time
 from telebot import types
 
-TOKEN = "توکن ربات آپلودر"
-CHANNEL = "@کانال_هدف"
-ADMINS = [123456789]  # آیدی عددی ادمین‌ها
+TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
+CHANNEL = "@hottof"
+ADMINS = [6387942633]  # آیدی عددی ادمین‌ها
 CHECKER_BOT_USERNAME = "TofLinkBot"
 
 bot = telebot.TeleBot(TOKEN)

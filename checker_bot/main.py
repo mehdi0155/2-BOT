@@ -1,71 +1,79 @@
-import telebot
-import os
-import json
-import flask
+import telebot, json, os, flask, time, threading
 
-TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
-REQUIRED_CHANNELS = ["@hottof"]
-
+TOKEN = "توکن ربات چکر"
 bot = telebot.TeleBot(TOKEN)
 
-DB_FILE = "db.json"  # مسیر اشتراکی دیتابیس فایل‌ها
+DB_FILE = "db.json"
+SETTINGS_FILE = "settings.json"
 
 def load_db():
-    if not os.path.exists(DB_FILE):
-        return {}
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+    return json.load(open(DB_FILE)) if os.path.exists(DB_FILE) else {}
 
-def is_member(user_id):
-    for channel in REQUIRED_CHANNELS:
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE) as f:
+            return json.load(f)
+    return {"checker_channels": []}
+
+def get_non_member_channels(user_id):
+    settings = load_settings()
+    non_members = []
+    for ch in settings.get("checker_channels", []):
         try:
-            member = bot.get_chat_member(channel, user_id)
+            member = bot.get_chat_member(ch, user_id)
             if member.status not in ['member', 'creator', 'administrator']:
-                return False
+                non_members.append(ch)
         except:
-            return False
-    return True
+            non_members.append(ch)
+    return non_members
 
 @bot.message_handler(commands=['start'])
-def start(message):
+def handle_start(message):
     args = message.text.split()
     if len(args) > 1:
         link_id = args[1]
-        if is_member(message.from_user.id):
-            send_file(message, link_id)
+        non_members = get_non_member_channels(message.from_user.id)
+        if not non_members:
+            send_download_link(message.chat.id, link_id)
         else:
-            send_subscription_prompt(message, link_id)
+            send_sub_prompt(message.chat.id, link_id, non_members)
     else:
-        bot.send_message(message.chat.id, "به ربات خوش آمدید.")
+        bot.send_message(message.chat.id, "لینک نامعتبر است.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("check_"))
-def check_subscription(call):
+def check_again(call):
     link_id = call.data.split("_", 1)[1]
-    if is_member(call.from_user.id):
-        send_file(call.message, link_id)
+    non_members = get_non_member_channels(call.from_user.id)
+    if not non_members:
+        send_download_link(call.message.chat.id, link_id)
     else:
-        send_subscription_prompt(call.message, link_id)
+        send_sub_prompt(call.message.chat.id, link_id, non_members)
 
-def send_subscription_prompt(message, link_id):
+def send_download_link(chat_id, link_id):
+    warn = bot.send_message(chat_id, "توجه: این پیام تا ۱۵ ثانیه دیگر حذف می‌شود.")
     markup = telebot.types.InlineKeyboardMarkup()
-    for ch in REQUIRED_CHANNELS:
+    markup.add(telebot.types.InlineKeyboardButton("مشاهده فایل", url=f"https://t.me/UpTofBot?start={link_id}"))
+    msg = bot.send_message(chat_id, "روی دکمه زیر بزن تا فایل را بگیری:", reply_markup=markup)
+    threading.Thread(target=delete_after, args=(chat_id, msg.message_id, warn.message_id)).start()
+
+def send_sub_prompt(chat_id, link_id, channels):
+    markup = telebot.types.InlineKeyboardMarkup()
+    for ch in channels:
         markup.add(telebot.types.InlineKeyboardButton(f"عضویت در {ch}", url=f"https://t.me/{ch[1:]}"))
     markup.add(telebot.types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
-    bot.send_message(message.chat.id, "برای دریافت فایل باید عضو کانال شوید.", reply_markup=markup)
+    bot.send_message(chat_id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
 
-def send_file(message, link_id):
-    final_link = f"https://t.me/UpTofBot?start={link_id}"  # لینک نهایی به ربات آپلودر
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton("مشاهده فایل", url=final_link))
-    bot.send_message(message.chat.id, "روی دکمه زیر کلیک کنید تا فایل را دریافت کنید:", reply_markup=markup)
-    
-    # ارسال با unique_id
-    bot.send_video(message.chat.id, file_unique_id, caption="@hottof | تُفِ داغ")
+def delete_after(chat_id, msg_id, warn_id):
+    time.sleep(15)
+    try:
+        bot.delete_message(chat_id, msg_id)
+        bot.delete_message(chat_id, warn_id)
+    except: pass
 
 def setup_routes(server):
     @server.route('/checker/' + TOKEN, methods=['POST'])
-    def get_checker_message():
+    def handle_checker():
         bot.process_new_updates([
             telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))
         ])
-        return "!", 200
+        return "OK", 200

@@ -113,6 +113,36 @@ def handle_start(message):
             bot.send_message(message.chat.id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
             return
 
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE) as f:
+                db = json.load(f)
+            file_id = db.get(link_id)
+            if file_id:
+                warning = bot.send_message(message.chat.id, "توجه: این محتوا تا ۱۵ ثانیه دیگر پاک می‌شود.")
+                sent = bot.send_video(message.chat.id, file_id)
+                threading.Thread(target=delete_after, args=(message.chat.id, sent.message_id, warning.message_id)).start()
+        return
+
+    if is_admin(uid):
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("📂 آپلود ویدیو", "📣 عضویت اجباری", "📊 آمار")
+        bot.send_message(message.chat.id, "به پنل خوش آمدید.", reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, "لینک دریافت شده معتبر نیست.")
+
+    if len(args) > 1:
+        link_id = args[1]
+        non_members = get_non_member_channels(uid)
+        if non_members:
+            markup = types.InlineKeyboardMarkup()
+            for ch in non_members:
+                username = ch["id"][1:] if ch["id"].startswith("@") else ch["id"]
+                name = ch.get("name", username)
+                markup.add(types.InlineKeyboardButton(f"عضویت در {name}", url=f"https://t.me/{username}"))
+            markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
+            bot.send_message(message.chat.id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
+            return
+
         with open(DB_FILE) as f:
             db = json.load(f)
         file_id = db.get(link_id)

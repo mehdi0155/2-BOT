@@ -54,11 +54,11 @@ def send_subscription_prompt(message, link_id):
     bot.send_message(message.chat.id, "برای دریافت فایل باید عضو کانال شوید.", reply_markup=markup)
 
 def send_file(message, link_id):
-    db = load_db()
-    file_unique_id = db.get(link_id)
-    if not file_unique_id:
-        bot.send_message(message.chat.id, "متأسفم، این فایل در دسترس نیست یا حذف شده.")
-        return
+    final_link = f"https://t.me/UpTofBot?start={link_id}"  # لینک نهایی به ربات آپلودر
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton("مشاهده فایل", url=final_link))
+    bot.send_message(message.chat.id, "روی دکمه زیر کلیک کنید تا فایل را دریافت کنید:", reply_markup=markup)
+    
     # ارسال با unique_id
     bot.send_video(message.chat.id, file_unique_id, caption="@hottof | تُفِ داغ")
 

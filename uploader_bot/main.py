@@ -2,20 +2,19 @@ import telebot
 from telebot import types
 import random
 import string
-import flask
 import os
 import json
 
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
-ADMINS = [آیدی ادمین‌ها]
+ADMINS = [6387942633, 5459406429]  # آیدی عددی ادمین ها
 CHECKER_BOT_USERNAME = "TofLinkBot"
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}
 pending_posts = {}
 
-DB_FILE = "db.json"
+DB_FILE = "db.json"  # مسیر اشتراکی؛ فقط همین فایل وجود داره
 
 def save_to_db(link_id, file_id):
     if os.path.exists(DB_FILE):
@@ -31,7 +30,14 @@ def is_admin(user_id):
     return user_id in ADMINS
 
 def generate_link_id():
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+    while True:
+        link_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        if not os.path.exists(DB_FILE):
+            return link_id
+        with open(DB_FILE, "r") as f:
+            db = json.load(f)
+        if link_id not in db:
+            return link_id
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -89,7 +95,7 @@ def preview_post(message):
     if data:
         link_id = generate_link_id()
         pending_posts[message.from_user.id] = link_id
-        save_to_db(link_id, data['file_id'])  # ذخیره در دیتابیس
+        save_to_db(link_id, data['file_id'])
         link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
         caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.InlineKeyboardMarkup()
@@ -101,7 +107,7 @@ def preview_post(message):
         confirm_markup = types.InlineKeyboardMarkup()
         confirm_markup.add(
             types.InlineKeyboardButton("ارسال در کانال", callback_data="send_now"),
-            types.InlineKeyboardButton("منصرف شدم", callback_data="cancel_post")
+            types.InlineKeyboardButton("لغو ارسال", callback_data="cancel_post")
         )
         bot.send_message(message.chat.id, "آیا این پست ارسال شود؟", reply_markup=confirm_markup)
 
@@ -128,20 +134,9 @@ def process_confirmation(call):
         pending_posts.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "ارسال لغو شد.")
 
-server = flask.Flask(__name__)
-
-@server.route('/' + TOKEN, methods=['POST'])
-def get_message():
-    bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
-    return "!", 200
-
-@server.route("/")
-def webhook():
-    url = os.environ.get("RENDER_EXTERNAL_URL")
-    if url:
-        bot.remove_webhook()
-        bot.set_webhook(url=url + "/" + TOKEN)
-    return "Webhook set!", 200
-
-if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+def setup_routes(server):
+    import flask
+    @server.route('/uploader/' + TOKEN, methods=['POST'])
+    def get_uploader_message():
+        bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
+        return "!", 200

@@ -77,18 +77,10 @@ def delete_after(chat_id, msg_id, warn_id):
     except:
         pass
 
-server = flask.Flask(__name__)
-
-@server.route('/checker/' + TOKEN, methods=['POST'])
-def handle_checker():
-    bot.process_new_updates([
-        telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))
-    ])
-    return "OK", 200
-
-WEBHOOK_URL = f"https://your-render-url.onrender.com/checker/{TOKEN}"
-bot.remove_webhook()
-bot.set_webhook(url=WEBHOOK_URL)
-
-if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+def setup_routes(server):
+    @server.route('/checker/' + TOKEN, methods=['POST'])
+    def handle_checker():
+        bot.process_new_updates([
+            telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))
+        ])
+        return "OK", 200

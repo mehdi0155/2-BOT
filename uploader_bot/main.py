@@ -25,6 +25,19 @@ def save_to_db(link_id, file_id):
         json.dump(db, f)
 
 
+def get_non_member_channels(user_id):
+    settings = load_settings()
+    non_members = []
+    for ch in settings.get("uploader_channels", []):
+        try:
+            member = bot.get_chat_member(ch["id"], user_id)
+            if member.status not in ['member', 'creator', 'administrator']:
+                non_members.append(ch)
+        except:
+            non_members.append(ch)
+    return non_members
+
+
 def generate_link_id():
     while True:
         link_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))

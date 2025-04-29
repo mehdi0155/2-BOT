@@ -193,3 +193,118 @@ def setup_routes(server):
             telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))
         ])
         return "!", 200
+
+SETTINGS_FILE = "settings.json"
+
+def load_settings():
+    if not os.path.exists(SETTINGS_FILE):
+        return {"checker_required_channels": [], "uploader_required_channels": []}
+    with open(SETTINGS_FILE, "r") as f:
+        return json.load(f)
+
+def save_settings(data):
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(data, f)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "مدیریت عضویت")
+def manage_membership(message):
+    settings = load_settings()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("افزودن کانال به چکر", "حذف کانال از چکر")
+    markup.add("افزودن کانال به آپلودر", "حذف کانال از آپلودر")
+    markup.add("دیدن لیست عضویت‌ها", "بازگشت")
+    bot.send_message(message.chat.id, "مدیریت عضویت را انتخاب کنید:", reply_markup=markup)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "افزودن کانال به چکر")
+def add_checker_channel(message):
+    msg = bot.send_message(message.chat.id, "آیدی کانال (مثلاً @mychannel) را بفرست:")
+    bot.register_next_step_handler(msg, process_add_checker)
+
+def process_add_checker(message):
+    settings = load_settings()
+    ch = message.text.strip()
+    if ch.startswith("@"):
+        if ch not in settings["checker_required_channels"]:
+            settings["checker_required_channels"].append(ch)
+            save_settings(settings)
+            bot.send_message(message.chat.id, "کانال با موفقیت به چکر اضافه شد.")
+        else:
+            bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده.")
+    else:
+        bot.send_message(message.chat.id, "آیدی باید با @ شروع شود.")
+    manage_membership(message)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "افزودن کانال به آپلودر")
+def add_uploader_channel(message):
+    msg = bot.send_message(message.chat.id, "آیدی کانال (مثلاً @mychannel) را بفرست:")
+    bot.register_next_step_handler(msg, process_add_uploader)
+
+def process_add_uploader(message):
+    settings = load_settings()
+    ch = message.text.strip()
+    if ch.startswith("@"):
+        if ch not in settings["uploader_required_channels"]:
+            settings["uploader_required_channels"].append(ch)
+            save_settings(settings)
+            bot.send_message(message.chat.id, "کانال با موفقیت به آپلودر اضافه شد.")
+        else:
+            bot.send_message(message.chat.id, "این کانال قبلاً اضافه شده.")
+    else:
+        bot.send_message(message.chat.id, "آیدی باید با @ شروع شود.")
+    manage_membership(message)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "حذف کانال از چکر")
+def remove_checker_channel(message):
+    settings = load_settings()
+    if not settings["checker_required_channels"]:
+        bot.send_message(message.chat.id, "هیچ کانالی وجود ندارد.")
+        return manage_membership(message)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for ch in settings["checker_required_channels"]:
+        markup.add(ch)
+    markup.add("بازگشت")
+    msg = bot.send_message(message.chat.id, "یکی از کانال‌ها را برای حذف انتخاب کن:", reply_markup=markup)
+    bot.register_next_step_handler(msg, process_remove_checker)
+
+def process_remove_checker(message):
+    settings = load_settings()
+    ch = message.text.strip()
+    if ch in settings["checker_required_channels"]:
+        settings["checker_required_channels"].remove(ch)
+        save_settings(settings)
+        bot.send_message(message.chat.id, "کانال حذف شد.")
+    else:
+        bot.send_message(message.chat.id, "کانال پیدا نشد.")
+    manage_membership(message)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "حذف کانال از آپلودر")
+def remove_uploader_channel(message):
+    settings = load_settings()
+    if not settings["uploader_required_channels"]:
+        bot.send_message(message.chat.id, "هیچ کانالی وجود ندارد.")
+        return manage_membership(message)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for ch in settings["uploader_required_channels"]:
+        markup.add(ch)
+    markup.add("بازگشت")
+    msg = bot.send_message(message.chat.id, "یکی از کانال‌ها را برای حذف انتخاب کن:", reply_markup=markup)
+    bot.register_next_step_handler(msg, process_remove_uploader)
+
+def process_remove_uploader(message):
+    settings = load_settings()
+    ch = message.text.strip()
+    if ch in settings["uploader_required_channels"]:
+        settings["uploader_required_channels"].remove(ch)
+        save_settings(settings)
+        bot.send_message(message.chat.id, "کانال حذف شد.")
+    else:
+        bot.send_message(message.chat.id, "کانال پیدا نشد.")
+    manage_membership(message)
+
+@bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "دیدن لیست عضویت‌ها")
+def show_membership_lists(message):
+    settings = load_settings()
+    checker = "\n".join(settings["checker_required_channels"]) or "هیچی"
+    uploader = "\n".join(settings["uploader_required_channels"]) or "هیچی"
+    bot.send_message(message.chat.id, f"چکر:\n{checker}\n\nآپلودر:\n{uploader}")
+    manage_membership(message)

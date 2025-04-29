@@ -80,7 +80,20 @@ def log_stats(file, user_id, channels):
         stats[today]["channels"][ch] += 1
     with open(file, "w") as f:
         json.dump(stats, f)
-
+@bot.callback_query_handler(func=lambda call: call.data.startswith("check_"))
+def recheck_subscription(call):
+    non_members = get_non_member_channels(call.from_user.id)
+    if non_members:
+        markup = types.InlineKeyboardMarkup()
+        for ch in non_members:
+            username = ch["id"][1:] if ch["id"].startswith("@") else ch["id"]
+            name = ch.get("name", username)
+            markup.add(types.InlineKeyboardButton(f"عضویت در {name}", url=f"https://t.me/{username}"))
+        markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=call.data))
+        bot.answer_callback_query(call.id)
+        bot.send_message(call.message.chat.id, "هنوز عضو نشدی! لطفاً ابتدا عضو شو:", reply_markup=markup)
+    else:
+        bot.answer_callback_query(call.id, "عضویت تأیید شد. دوباره لینک را بزن.")
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
@@ -88,8 +101,16 @@ def handle_start(message):
     uid = message.from_user.id
 
     if len(args) > 1:
-        link_id = args[1]
-        if os.path.exists(DB_FILE):
+    link_id = args[1]
+    non_members = get_non_member_channels(uid)
+    if non_members:
+        markup = types.InlineKeyboardMarkup()
+        for ch in non_members:
+            username = ch["id"][1:] if ch["id"].startswith("@") else ch["id"]
+            name = ch.get("name", username)
+            markup.add(types.InlineKeyboardButton(f"عضویت در {name}", url=f"https://t.me/{username}"))
+        bot.send_message(message.chat.id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
+        return
             with open(DB_FILE) as f:
                 db = json.load(f)
             file_id = db.get(link_id)

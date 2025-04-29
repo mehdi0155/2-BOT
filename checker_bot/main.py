@@ -4,14 +4,21 @@ import os
 import threading
 import time
 import flask
+import json
 
 TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
-ADMIN_BOT_USERNAME = "TofLinkBot"  # همین ربات چکر
-UPLOADER_BOT_USERNAME = "UpTofBot"  # <<< اینجا یوزرنیم ربات آپلودر رو وارد کن (دقت کن)
-
+UPLOADER_BOT_USERNAME = "UpTofBot"
 REQUIRED_CHANNELS = ["@hottof"]
 
 bot = telebot.TeleBot(TOKEN)
+
+DB_FILE = "db.json"
+
+def load_db():
+    if not os.path.exists(DB_FILE):
+        return {}
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
 
 def is_member(user_id):
     for channel in REQUIRED_CHANNELS:
@@ -29,7 +36,7 @@ def start(message):
     if len(args) > 1:
         link_id = args[1]
         if is_member(message.from_user.id):
-            send_temp_link(message, link_id)
+            send_file_link(message, link_id)
         else:
             markup = types.InlineKeyboardMarkup()
             for ch in REQUIRED_CHANNELS:
@@ -41,7 +48,7 @@ def start(message):
 def check_membership(call):
     link_id = call.data.split("_", 1)[1]
     if is_member(call.from_user.id):
-        send_temp_link(call.message, link_id)
+        send_file_link(call.message, link_id)
     else:
         markup = types.InlineKeyboardMarkup()
         for ch in REQUIRED_CHANNELS:
@@ -49,17 +56,13 @@ def check_membership(call):
         markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
         bot.edit_message_text("هنوز عضو نشده‌اید. لطفاً عضو شوید و دوباره بررسی کنید.", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-def send_temp_link(message, link_id):
-    link = f"https://t.me/{UPLOADER_BOT_USERNAME}?start={link_id}"
-    msg = bot.send_message(message.chat.id, f"دریافت فایل:\n{link}")
-    threading.Thread(target=delete_after, args=(msg.chat.id, msg.message_id)).start()
-
-def delete_after(chat_id, message_id):
-    time.sleep(15)
-    try:
-        bot.delete_message(chat_id, message_id)
-    except:
-        pass
+def send_file_link(message, link_id):
+    db = load_db()
+    if link_id not in db:
+        bot.send_message(message.chat.id, "متأسفم، این لینک معتبر نیست یا منقضی شده.")
+        return
+    file_link = f"https://t.me/{UPLOADER_BOT_USERNAME}?start={link_id}"
+    bot.send_message(message.chat.id, f"دریافت فایل:\n{file_link}")
 
 server = flask.Flask(__name__)
 

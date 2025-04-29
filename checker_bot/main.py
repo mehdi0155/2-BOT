@@ -55,11 +55,12 @@ def send_subscription_prompt(message, link_id):
 
 def send_file(message, link_id):
     db = load_db()
-    file_id = db.get(link_id)
-    if not file_id:
+    file_unique_id = db.get(link_id)
+    if not file_unique_id:
         bot.send_message(message.chat.id, "متأسفم، این فایل در دسترس نیست یا حذف شده.")
         return
-    bot.send_video(message.chat.id, file_id, caption="@hottof | تُفِ داغ")
+    # ارسال با unique_id
+    bot.send_video(message.chat.id, file_unique_id, caption="@hottof | تُفِ داغ")
 
 def setup_routes(server):
     @server.route('/checker/' + TOKEN, methods=['POST'])

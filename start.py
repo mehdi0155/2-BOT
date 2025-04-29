@@ -1,17 +1,13 @@
-from uploader_bot.main import setup_routes as uploader_routes
-from checker_bot.main import setup_routes as checker_routes
-from flask import Flask
-import os
+from uploader_bot.main import server as uploader_server
+from checker_bot.main import server as checker_server
+import threading
 
-server = Flask(__name__)
+def run_uploader():
+    uploader_server.run(host="0.0.0.0", port=5000)
 
-uploader_routes(server)
-checker_routes(server)
-
-@server.route("/")
-def index():
-    return "Webhook set!", 200
+def run_checker():
+    checker_server.run(host="0.0.0.0", port=5001)
 
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    server.run(host="0.0.0.0", port=port)
+    threading.Thread(target=run_uploader).start()
+    threading.Thread(target=run_checker).start()

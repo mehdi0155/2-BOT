@@ -8,7 +8,7 @@ import os
 TOKEN = "7920918778:AAFF4MDkYX4qBpuyXyBgcuCssLa6vjmTN1c"
 CHANNEL = "@hottof"
 ADMINS = [6378124502, 6387942633, 5459406429, 7189616405]
-CHECKER_BOT_USERNAME = "UpTofBot"  # <<< یوزرنیم ربات چکر اینجا تعریف شده
+CHECKER_BOT_USERNAME = "TofLinkBot"  # <<< یوزرنیم ربات چکر اینجا تعریف شده
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}

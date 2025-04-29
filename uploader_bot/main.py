@@ -104,8 +104,9 @@ def admin_panel(message):
 
 @bot.message_handler(func=lambda m: is_admin(m.from_user.id) and m.text == "📂 آپلود ویدیو")
 def ask_video(message):
-    msg = bot.send_message(message.chat.id, "لطفاً ویدیو را ارسال کنید.")
-    bot.register_next_step_handler(msg, receive_video)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+markup.add("برگشت")
+msg = bot.send_message(message.chat.id, "لطفاً ویدیو را ارسال کنید.", reply_markup=markup)
 
 
 def receive_video(message):

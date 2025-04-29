@@ -101,18 +101,6 @@ def handle_start(message):
     uid = message.from_user.id
 
 
-    if len(args) > 1:
-        link_id = args[1]
-        non_members = get_non_member_channels(uid)
-        if non_members:
-            markup = types.InlineKeyboardMarkup()
-            for ch in non_members:
-                username = ch["id"][1:] if ch["id"].startswith("@") else ch["id"]
-                name = ch.get("name", username)
-                markup.add(types.InlineKeyboardButton(f"عضویت در {name}", url=f"https://t.me/{username}"))
-            markup.add(types.InlineKeyboardButton("بررسی عضویت", callback_data=f"check_{link_id}"))
-            bot.send_message(message.chat.id, "برای دریافت فایل، ابتدا در کانال(های) زیر عضو شو:", reply_markup=markup)
-            return
 
         with open(DB_FILE) as f:
             db = json.load(f)

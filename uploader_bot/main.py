@@ -12,12 +12,12 @@ user_data, pending_posts = {}, {}
 DB_FILE = "db.json"
 SETTINGS_FILE = "settings.json"
 
-def save_to_db(link_id, file_unique_id):
+def save_to_db(link_id, file_id):
     db = {}
     if os.path.exists(DB_FILE):
         with open(DB_FILE) as f:
             db = json.load(f)
-    db[link_id] = file_unique_id
+    db[link_id] = file_id
     with open(DB_FILE, "w") as f:
         json.dump(db, f)
 
@@ -79,7 +79,7 @@ def receive_video(message):
     if not message.video:
         bot.send_message(message.chat.id, "فقط ویدیو ارسال کنید.")
         return
-    user_data[message.from_user.id] = {'file_unique_id': message.video.file_unique_id}
+    user_data[message.from_user.id] = {'file_id': message.video.file_id}
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("ندارم", callback_data="no_cover"))
     bot.send_message(message.chat.id, "کاور را ارسال کنید یا روی 'ندارم' کلیک کنید.", reply_markup=markup)
@@ -115,7 +115,7 @@ def preview_post(message):
     if data:
         link_id = generate_link_id()
         pending_posts[message.from_user.id] = link_id
-        save_to_db(link_id, data['file_unique_id'])
+        save_to_db(link_id, data['file_id'])
         link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
         caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
         markup = types.InlineKeyboardMarkup()

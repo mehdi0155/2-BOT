@@ -134,13 +134,13 @@ def preview_post(message):
         pending_posts[message.from_user.id] = link_id
         save_to_db(link_id, data['file_id'])
         link = f"https://t.me/{CHECKER_BOT_USERNAME}?start={link_id}"
-        caption = f"{data['caption']}\n\n@hottof | تُفِ داغ"
+        caption = f"{data['caption']}\n\n@hottof | تُفِ داغ\n\n[مشاهده]({link})"
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("ارسال در کانال", "لغو ارسال")
         if data.get('cover'):
-            bot.send_photo(message.chat.id, data['cover'], caption=caption)
+            bot.send_photo(message.chat.id, data['cover'], caption=caption, parse_mode="Markdown")
         else:
-            bot.send_message(message.chat.id, caption)
+            bot.send_message(message.chat.id, caption, parse_mode="Markdown")
         bot.send_message(message.chat.id, "آیا پست ارسال شود؟", reply_markup=markup)
 
 

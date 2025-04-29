@@ -1,13 +1,14 @@
 import telebot
 import os
 import json
+import flask
 
 TOKEN = "7679592392:AAFK0BHxrvxH_I23UGveiVGzc_-M10lPUOA"
 REQUIRED_CHANNELS = ["@hottof"]
 
 bot = telebot.TeleBot(TOKEN)
 
-DB_FILE = "db.json"  # مسیر اشتراکی
+DB_FILE = "db.json"  # مسیر اشتراکی دیتابیس فایل‌ها
 
 def load_db():
     if not os.path.exists(DB_FILE):
@@ -34,6 +35,8 @@ def start(message):
             send_file(message, link_id)
         else:
             send_subscription_prompt(message, link_id)
+    else:
+        bot.send_message(message.chat.id, "به ربات خوش آمدید.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("check_"))
 def check_subscription(call):
@@ -54,13 +57,14 @@ def send_file(message, link_id):
     db = load_db()
     file_id = db.get(link_id)
     if not file_id:
-        bot.send_message(message.chat.id, "متأسفم، این فایل در دسترس نیست.")
+        bot.send_message(message.chat.id, "متأسفم، این فایل در دسترس نیست یا حذف شده.")
         return
     bot.send_video(message.chat.id, file_id, caption="@hottof | تُفِ داغ")
 
 def setup_routes(server):
-    import flask
     @server.route('/checker/' + TOKEN, methods=['POST'])
     def get_checker_message():
-        bot.process_new_updates([telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))])
+        bot.process_new_updates([
+            telebot.types.Update.de_json(flask.request.stream.read().decode("utf-8"))
+        ])
         return "!", 200

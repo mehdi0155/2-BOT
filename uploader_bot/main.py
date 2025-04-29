@@ -38,8 +38,24 @@ def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f: json.dump(settings, f)
 
 @bot.message_handler(commands=['start'])
-def start(message):
+def handle_start(message):
+    args = message.text.split()
     uid = message.from_user.id
+
+    if len(args) > 1:
+        # اگر لینک بود (start با آرگومان)
+        link_id = args[1]
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE) as f:
+                db = json.load(f)
+            file_id = db.get(link_id)
+            if file_id:
+                warning = bot.send_message(message.chat.id, "توجه: این محتوا تا ۱۵ ثانیه دیگر پاک می‌شود.")
+                sent = bot.send_video(message.chat.id, file_id)
+                threading.Thread(target=delete_after, args=(message.chat.id, sent.message_id, warning.message_id)).start()
+        return
+
+    # اگر بدون آرگومان بود و ادمین بود، پنل را نشان بده
     if is_admin(uid):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("آپلود ویدیو", "مدیریت عضویت")
@@ -157,19 +173,6 @@ def set_channels(message):
         return bot.send_message(message.chat.id, "فرمت نادرست.")
     save_settings(settings)
     bot.send_message(message.chat.id, "تنظیمات ذخیره شد.")
-
-@bot.message_handler(commands=['start'])
-def serve_file(message):
-    args = message.text.split()
-    if len(args) > 1:
-        link_id = args[1]
-        with open(DB_FILE) as f:
-            db = json.load(f)
-        file_id = db.get(link_id)
-        if file_id:
-            warning = bot.send_message(message.chat.id, "توجه: این محتوا تا ۱۵ ثانیه دیگر پاک می‌شود.")
-            sent = bot.send_video(message.chat.id, file_id)
-            threading.Thread(target=delete_after, args=(message.chat.id, sent.message_id, warning.message_id)).start()
 
 def delete_after(chat_id, msg_id, warn_id):
     time.sleep(15)

@@ -1,4 +1,4 @@
 {
-  "uploader_channels": ["@channel1"],
-  "checker_channels": ["@channel1", "@channel2"]
+  "uploader_channels": ["@hottof"],
+  "checker_channels": ["", ""]
 }

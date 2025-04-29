@@ -101,7 +101,6 @@ def handle_start(message):
     uid = message.from_user.id
 
 
-
         with open(DB_FILE) as f:
             db = json.load(f)
         file_id = db.get(link_id)
